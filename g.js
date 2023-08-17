@@ -13,6 +13,7 @@ var mousey=-100;
 var oldmousex,oldmousey;
 var level=0;
 var drawable=[];
+var cooldown=0;
 
 //TODO DEBUG
 level=0;
@@ -36,12 +37,41 @@ setInterval(run, 33);
 function setup()
 {
     drawable=[];
+    var tmp=new Object();
+    tmp.type="circle";
+    tmp.x=canvasW/2;
+    tmp.y=canvasH/3*2;
+    tmp.radius=30;
+    tmp.clickable=true;
+    tmp.click=function(e) { levelUp();};
+    drawable.push(tmp);
+}
+//level up!
+function levelUp()
+{
+    dragging=false;
+    level++;
+    /*
+        1 - clickCircle
+        2 - absorbeCircles
+        3 - Tron (survivor.io)
+        4 - Snake
+        5 - arkanoid
+        6  Pong
+    */
+    console.log("Level up!",level);//TODO DEBUG
 }
 //draw a single object
 function draw(obj)
 {
     ctx.save();
-    //TODO
+    if(obj.type=="circle")
+    {
+        ctx.fillStyle=fg;
+        ctx.beginPath();
+        ctx.arc(obj.x, obj.y, obj.radius, 0, 2 * Math.PI);
+        ctx.fill(); 
+    }
     ctx.restore();
 }
 //main loop that draw the screen
@@ -56,10 +86,71 @@ function run()
     ctx.fillRect(0,canvasH-1,canvasW,1);
     ctx.fillRect(0,0,1,canvasH);
     ctx.fillRect(canvasW-1,0,1,canvasH);
+    if(level==0)
+    {
+        ctx.fillStyle=fg;
+        ctx.font = "300px Brush Script MT";
+        ctx.textAlign="center";
+        ctx.fillText("B",canvasW/2,canvasH/3);
+    }
+    else if(level==1)
+    {
+        cooldown--;
+        if(cooldown<0)
+        {
+            drawable=[];
+            cooldown=100;
+        }
+        else if(cooldown==15)
+        {
+            var tmp=new Object();
+            tmp.type="circle";
+            tmp.x=rand(20,canvasW-20);
+            tmp.y=rand(20,canvasH-20);
+            tmp.radius=20;
+            tmp.clickable=true;
+            tmp.click=function(e) { levelUp();};
+            drawable.push(tmp);
+        }
+    }
+
+    canvas.style.cursor="default";
+    drawable.forEach(el => draw(el));
+    drawable.forEach(el => { 
+        el.selected=isSelected(el); 
+        if(el.clickable && el.selected) 
+        { 
+            canvas.style.cursor="pointer"; 
+            if(dragging)
+            {
+                el.click();
+            }
+        } 
+    });
 
     //log gesture
     oldmousex=mousex;
     oldmousey=mousey;
+}
+//check if mouse is inside obj
+function isSelected(obj,tx,ty)
+{
+    if(tx==null)
+    {
+        tx=mousex;
+        ty=mousey;
+    }
+    //circle-based
+    if(obj.radius>0 && distanceFrom(tx,ty,obj.x,obj.y) < obj.radius)
+        return true;
+    else if(obj.radius>0)
+        return false;
+    //rectangle-based
+    if(tx < obj.x) return false;
+    if(tx > obj.x + obj.width) return false;
+    if(ty < obj.y) return false;
+    if(ty > obj.y + obj.height) return false;
+    return true;
 }
 /*#############
     Funzioni Utili
