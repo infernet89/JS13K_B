@@ -14,6 +14,7 @@ var oldmousex,oldmousey;
 var level=0;
 var drawable=[];
 var cooldown=0;
+var mainPg;
 
 //TODO DEBUG
 level=0;
@@ -37,14 +38,46 @@ setInterval(run, 33);
 function setup()
 {
     drawable=[];
-    var tmp=new Object();
-    tmp.type="circle";
-    tmp.x=canvasW/2;
-    tmp.y=canvasH/3*2;
-    tmp.radius=30;
-    tmp.clickable=true;
-    tmp.click=function(e) { levelUp();};
-    drawable.push(tmp);
+    if(level==0)
+    {
+        var tmp=new Object();
+        tmp.type="circle";
+        tmp.x=canvasW/2;
+        tmp.y=canvasH/3*2;
+        tmp.radius=30;
+        tmp.clickable=true;
+        tmp.click=function(e) { levelUp();};
+        drawable.push(tmp);        
+    }
+    else if(level==2)
+    {
+        drawable=[];
+        mainPg=new Object();
+        mainPg.type="circle";
+        mainPg.radius=20;
+        mainPg.x=mousex;
+        mainPg.y=mousey;
+        for(var i=0;i<20;i++)
+        {
+            var tmp=new Object();
+            tmp.type="circle";
+            tmp.radius=10;
+            regenerateBall(tmp); 
+            drawable.push(tmp);
+        }
+        canvas.style.cursor="none";
+    }
+    else if(level==3)
+    {
+        drawable=[];
+        var tmp=new Object();
+        tmp.type="circle";
+        tmp.radius=canvasH/2;
+        tmp.x=canvasW/2;
+        tmp.y=canvasH/2;
+        drawable.push(tmp);
+        canvas.style.cursor="default";
+    }
 }
 //level up!
 function levelUp()
@@ -57,8 +90,9 @@ function levelUp()
         3 - Tron (survivor.io)
         4 - Snake
         5 - arkanoid
-        6  Pong
+        6 - Pong
     */
+    setup();
     console.log("Level up!",level);//TODO DEBUG
 }
 //draw a single object
@@ -73,6 +107,33 @@ function draw(obj)
         ctx.fill(); 
     }
     ctx.restore();
+}
+function move(obj)
+{
+    if(!obj.dx || !obj.dy) return;
+    obj.x+=obj.dx;
+    obj.y+=obj.dy;
+    if(level==2)
+    {
+        //we absorbe the ball
+        if(distanceFrom(mainPg.x,mainPg.y,obj.x,obj.y) < obj.radius+mainPg.radius)
+        {
+            mainPg.radius+=2;
+            obj.x=-999;
+        }
+        //we regenerate the one offscreen
+        if(obj.x < -200 || obj.x > canvasW+200 || obj.y < -200 || obj.y > canvasH+200)
+        {
+            regenerateBall(obj);              
+        }
+        //ending conditions
+        if(mainPg.radius>=canvasH/2)
+        {
+            mainPg.radius=canvasH/2;
+            if(mainPg.x>canvasW/2-10 && mainPg.x<canvasW/2+10)
+                levelUp();
+        }
+    }
 }
 //main loop that draw the screen
 function run()
@@ -92,6 +153,7 @@ function run()
         ctx.font = "300px Brush Script MT";
         ctx.textAlign="center";
         ctx.fillText("B",canvasW/2,canvasH/3);
+        canvas.style.cursor="default";
     }
     else if(level==1)
     {
@@ -101,7 +163,7 @@ function run()
             drawable=[];
             cooldown=100;
         }
-        else if(cooldown==15)
+        else if(cooldown==30)
         {
             var tmp=new Object();
             tmp.type="circle";
@@ -112,10 +174,32 @@ function run()
             tmp.click=function(e) { levelUp();};
             drawable.push(tmp);
         }
+        canvas.style.cursor="default";
+    }
+    else if(level==2)
+    {
+        mainPg.x=mousex;
+        if(mainPg.x-mainPg.radius<0)
+        {
+            mainPg.x=mainPg.radius;
+        }
+        else if(mainPg.x+mainPg.radius>canvasW)
+        {
+            mainPg.x=canvasW-mainPg.radius;
+        }
+        mainPg.y=mousey;
+        if(mainPg.y-mainPg.radius<0)
+        {
+            mainPg.y=mainPg.radius;
+        }
+        else if(mainPg.y+mainPg.radius>canvasH)
+        {
+            mainPg.y=canvasH-mainPg.radius;
+        }
+        draw(mainPg);
     }
 
-    canvas.style.cursor="default";
-    drawable.forEach(el => draw(el));
+    drawable.forEach(el => { draw(el); move(el); } );
     drawable.forEach(el => { 
         el.selected=isSelected(el); 
         if(el.clickable && el.selected) 
@@ -131,6 +215,21 @@ function run()
     //log gesture
     oldmousex=mousex;
     oldmousey=mousey;
+}
+function regenerateBall(obj)
+{
+    obj.x=100;
+    obj.y=100;
+    while(obj.x > 10 && obj.x < canvasW+10 && obj.y > 10 && obj.y < canvasH+10) 
+    {
+        obj.x=rand(-200,canvasW+200);
+        obj.y=rand(-200,canvasH+200);
+    }
+    while(!obj.dx || !obj.dy)
+    {
+        obj.dx=rand(-10,10);
+        obj.dy=rand(-10,10);
+    } 
 }
 //check if mouse is inside obj
 function isSelected(obj,tx,ty)
