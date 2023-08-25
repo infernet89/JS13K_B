@@ -259,6 +259,10 @@ function run()
         }
         else
         {//outside circle
+            if(trail.length>0)
+            {
+                //TODO we need to close the trail and fill the smaller area of the circle. Ship.
+            }
             trail.length=0;
         }
     }
