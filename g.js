@@ -15,9 +15,10 @@ var level=0;
 var drawable=[];
 var cooldown=0;
 var mainPg;
+var trail=[];
 
 //TODO DEBUG
-level=0;
+level=3;
 //TODO DEBUG
 
 //setup
@@ -77,6 +78,18 @@ function setup()
         tmp.y=canvasH/2;
         drawable.push(tmp);
         canvas.style.cursor="default";
+
+        mainPg=new Object();
+        mainPg.type="ship";
+        mainPg.size=20;
+        mainPg.angle=90;
+        mainPg.x=-20;
+        mainPg.y=-20;
+        drawable.push(mainPg);
+
+        trail=[];
+        trail.type="trail";
+        drawable.push(trail);
     }
 }
 //level up!
@@ -106,11 +119,32 @@ function draw(obj)
         ctx.arc(obj.x, obj.y, obj.radius, 0, 2 * Math.PI);
         ctx.fill(); 
     }
+    else if(obj.type=="ship")
+    {
+        ctx.translate(obj.x,obj.y);
+        ctx.rotate((obj.angle* Math.PI) / 180);
+        for(i=0;i<obj.size;i++)
+        {
+            if(i%2)
+                ctx.fillStyle=fg;
+            else
+                ctx.fillStyle=bg;
+            ctx.fillRect(-i/2,i,3,3);
+            ctx.fillRect(+i/2,i,3,3);
+        }
+    }
+    else if(obj.type=="trail")
+    {
+        ctx.beginPath();
+        ctx.fillStyle=bg;
+        obj.forEach((e) => ctx.lineTo(e.x,e.y));
+        ctx.stroke();
+    }
     ctx.restore();
 }
 function move(obj)
 {
-    if(!obj.dx || !obj.dy) return;
+    if(obj.dx==null || obj.dy==null) return;
     obj.x+=obj.dx;
     obj.y+=obj.dy;
     if(level==2)
@@ -197,6 +231,36 @@ function run()
             mainPg.y=canvasH-mainPg.radius;
         }
         draw(mainPg);
+    }
+    else if(level==3)
+    {
+        //make the main pg follow the mouse
+        const speed=5;
+        mainPg.angle=(Math.atan2(mainPg.y - mousey, mainPg.x - mousex) * (180 / Math.PI) + 360 - 90) % 360; //thanks, chatGPT.
+        if(Math.abs(mainPg.x-mousex)<=speed)
+            mainPg.dx=0;
+        else if(mainPg.x<mousex)
+            mainPg.dx=speed;
+        else if(mainPg.x>mousex)
+            mainPg.dx=-speed;
+        if(Math.abs(mainPg.y-mousey)<=speed)
+            mainPg.dy=0;
+        else if(mainPg.y<mousey)
+            mainPg.dy=speed;
+        else if(mainPg.y>mousey)
+            mainPg.dy=-speed;
+        //and marks his trail
+        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)<canvasH/2)//inside circle
+        {
+            tmp=new Object();
+            tmp.x=mainPg.x;
+            tmp.y=mainPg.y;
+            trail.push(tmp);
+        }
+        else
+        {//outside circle
+            trail.length=0;
+        }
     }
 
     drawable.forEach(el => { draw(el); move(el); } );
