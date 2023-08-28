@@ -16,6 +16,7 @@ var drawable=[];
 var cooldown=0;
 var mainPg;
 var trail=[];
+var v=[];
 
 //TODO DEBUG
 level=3;
@@ -90,6 +91,18 @@ function setup()
         trail=[];
         trail.type="trail";
         drawable.push(trail);
+
+        //boolean matrix of colored pixel (that are inside the circle)
+        for(x=0;x<canvasW;x++)
+        {
+            if(v[x]==null)
+                v[x]=[];
+            for(y=0;y<canvasH;y++)
+            if(distanceFrom(canvasW/2,canvasH/2,x,y)<canvasH/2)
+            {
+                v[x][y]=0;
+            }
+        }            
     }
 }
 //level up!
@@ -172,6 +185,44 @@ function move(obj)
 //main loop that draw the screen
 function run()
 {
+    //TODO DEBUG
+    if(dragging)
+    {
+        colorBall();
+        for(var x in v)
+            for(var y in v)
+            {
+                if(v[x][y]==0)
+                {
+                    ctx.fillStyle="#F00";
+                }
+                else if(v[x][y]==1)
+                {
+                    ctx.fillStyle="#0F0";
+                }
+                else if(v[x][y]==2)
+                {
+                    ctx.fillStyle="#00F";
+                }
+                else if(v[x][y]==3)
+                {
+                    ctx.fillStyle="#FF0";
+                }
+                else if(v[x][y]==4)
+                {
+                    ctx.fillStyle="#0FF";
+                }
+                else if(v[x][y]==5)
+                {
+                    ctx.fillStyle="#F0F";
+                }
+                if(v[x][y]!=null)
+                    ctx.fillRect(x,y,1,1);
+            }
+        return;
+    }        
+    //TODO DEBUG
+
     ctx.clearRect(0, 0, canvasW, canvasH);
     ctx.fillStyle=bg;
     ctx.fillRect(0,0,canvasW,canvasH);
@@ -250,12 +301,34 @@ function run()
         else if(mainPg.y>mousey)
             mainPg.dy=-speed;
         //and marks his trail
-        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)<canvasH/2)//inside circle
+        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)-20<canvasH/2)//inside circle
         {
-            tmp=new Object();
-            tmp.x=mainPg.x;
-            tmp.y=mainPg.y;
-            trail.push(tmp);
+            var toMark=true;
+            //simplify, if possible
+            if(trail.length>1)
+            {
+                //stuck
+                if(trail[trail.length-1].x==mainPg.x && trail[trail.length-1].y==mainPg.y)
+                {
+                    toMark=false;
+                }
+                //same direction
+                else if((Math.atan2(mainPg.y - trail[trail.length-1].y, mainPg.x - trail[trail.length-1].x) * (180 / Math.PI) + 360 - 90) % 360 
+                    ==  (Math.atan2(trail[trail.length-1].y - trail[trail.length-2].y, trail[trail.length-1].x - trail[trail.length-2].x) * (180 / Math.PI) + 360 - 90) % 360)
+                {
+                    trail[trail.length-1].x=mainPg.x;
+                    trail[trail.length-1].y=mainPg.y;
+                    toMark=false;
+                }
+            }
+            //mark trail
+            if(toMark)
+            {
+                tmp=new Object();
+                tmp.x=mainPg.x;
+                tmp.y=mainPg.y;
+                trail.push(tmp);
+            }
         }
         else
         {//outside circle
@@ -263,7 +336,7 @@ function run()
             {
                 //TODO we need to close the trail and fill the smaller area of the circle. Ship.
             }
-            trail.length=0;
+            //trail.length=0;
         }
     }
 
@@ -284,6 +357,66 @@ function run()
     oldmousex=mousex;
     oldmousey=mousey;
 }
+//color pixel inside ball, in order to see wich section close with the trail
+function colorBall(px=null,py=null,c=1)
+{
+    
+    if(px==null)
+    {
+        for(var x in v)
+            for(var y in v)
+                if(v[x][y]==0)
+                {
+                    colorBall(x,y,c++);
+                    console.log("Colore",c);
+                }
+    }
+    else if(v[px]==null || v[px][py]==null || v[px][py]!=0)
+        return;
+    else
+    {
+        //console.log(px,py,c);
+        v[px][py]=c;
+        //TODO check if is crossing a line of trail before applying it
+        if(canCross(trail,px,py,px+1,py))
+            colorBall(px+1,py,c);
+        if(canCross(trail,px,py,px-1,py))
+            colorBall(px-1,py,c);
+        if(canCross(trail,px,py,px,py+1))
+            colorBall(px,py+1,c);
+        if(canCross(trail,px,py,px,py-1))
+            colorBall(px,py-1,c);
+    }
+}
+function canCross(lines,fx,fy,tx,ty)
+{
+    var res=true;
+    var f=new Object();
+    f.x=fx;
+    f.y=fy;
+    var t=new Object();
+    t.x=tx;
+    t.y=ty;
+    for(i=0;i<lines.length-1 && res;i++)
+    {
+        if(doLinesIntersect(f,t,lines[i],lines[i+1]))// || isPointOnSegment(lines[i],t,lines[i+1]))
+        {
+            res=false;
+            console.log("this");
+        }
+            
+    }
+    return res;
+}
+function doLinesIntersect(a, b, c, d)
+{
+    return ((a.y - c.y) * (d.x - c.x)) * ((a.x - b.x) * (c.y - b.y)) >= 0 && ((c.y - a.y) * (b.x - a.x)) * ((c.x - d.x) * (a.y - d.y)) >= 0;
+}
+function isPointOnSegment(p, q, r) {
+    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
+           q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+}
+
 function regenerateBall(obj)
 {
     obj.x=100;
