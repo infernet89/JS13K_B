@@ -16,6 +16,7 @@ var drawable=[];
 var cooldown=0;
 var mainPg;
 var trail=[];
+var filledTrails=[];
 var v=[];
 
 //TODO DEBUG
@@ -151,10 +152,36 @@ function draw(obj)
         ctx.beginPath();
         ctx.fillStyle=bg;
         obj.forEach((e) => ctx.lineTo(e.x,e.y));
-        ctx.stroke();
+        if(obj.filled)
+        {
+            var angleFrom=((Math.atan2(obj[obj.length-1].y - canvasH/2, obj[obj.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
+            var angleTo=((Math.atan2(obj[0].y - canvasH/2, obj[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;            
+            if(angleFrom>angleTo || angleTo-angleFrom>180)
+            {
+                factor=-1;
+            }
+            else
+            {
+                factor=1;
+            }
+            for (var angle = angleFrom; Math.round(angle) != Math.round(angleTo); angle+=factor)
+            {
+                if(angle<0)
+                    angle+=360;
+                angle=angle%360;
+                const radians = (angle % 360) * (Math.PI / 180);
+                const x = canvasW/2 + canvasH/1.9 * Math.cos(radians);
+                const y = canvasH/2 + canvasH/1.9 * Math.sin(radians);
+                ctx.lineTo(x,y);
+            }
+            ctx.fill("evenodd");
+        }
+        else
+            ctx.stroke();
     }
     ctx.restore();
 }
+
 function move(obj)
 {
     if(obj.dx==null || obj.dy==null) return;
@@ -188,7 +215,6 @@ function run()
     //TODO DEBUG
     if(dragging)
     {
-        colorBall();
         for(var x in v)
             for(var y in v)
             {
@@ -285,6 +311,9 @@ function run()
     }
     else if(level==3)
     {
+        //drawable.forEach(el => { draw(el); } );
+        //var shipPixel=ctx.getImageData(mainPg.x, mainPg.y, 1, 1).data[0]
+        //console.log(shipPixel);//TODO DEBUG
         //make the main pg follow the mouse
         const speed=5;
         mainPg.angle=(Math.atan2(mainPg.y - mousey, mainPg.x - mousex) * (180 / Math.PI) + 360 - 90) % 360; //thanks, chatGPT.
@@ -300,8 +329,18 @@ function run()
             mainPg.dy=speed;
         else if(mainPg.y>mousey)
             mainPg.dy=-speed;
+
+        //check if it is inside a filled trail
+        var outside=true;
+        filledTrails.forEach(el =>
+        {
+            if(isPointInsidePolygon(mainPg,el))
+                outside=false;
+        });
+
         //and marks his trail
-        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)-20<canvasH/2)//inside circle
+        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)-10<canvasH/2//inside circle
+            && outside) //outside any other conquered zone
         {
             var toMark=true;
             //simplify, if possible
@@ -334,9 +373,14 @@ function run()
         {//outside circle
             if(trail.length>0)
             {
-                //TODO we need to close the trail and fill the smaller area of the circle. Ship.
+                var tmp=Array.from(trail);
+                tmp.type="trail";
+                tmp.filled=true;
+                drawable.push(tmp);
+                filledTrails.push(tmp);
+                drawable.push(drawable.splice(drawable.findIndex(item => item.type === "ship"), 1)[0]);
             }
-            //trail.length=0;
+            trail.length=0;
         }
     }
 
@@ -357,66 +401,28 @@ function run()
     oldmousex=mousex;
     oldmousey=mousey;
 }
-//color pixel inside ball, in order to see wich section close with the trail
-function colorBall(px=null,py=null,c=1)
-{
+//thanks, chatGPT
+function isPointInsidePolygon(point, polygon) {
+    const x = point.x;
+    const y = point.y;
     
-    if(px==null)
-    {
-        for(var x in v)
-            for(var y in v)
-                if(v[x][y]==0)
-                {
-                    colorBall(x,y,c++);
-                    console.log("Colore",c);
-                }
-    }
-    else if(v[px]==null || v[px][py]==null || v[px][py]!=0)
-        return;
-    else
-    {
-        //console.log(px,py,c);
-        v[px][py]=c;
-        //TODO check if is crossing a line of trail before applying it
-        if(canCross(trail,px,py,px+1,py))
-            colorBall(px+1,py,c);
-        if(canCross(trail,px,py,px-1,py))
-            colorBall(px-1,py,c);
-        if(canCross(trail,px,py,px,py+1))
-            colorBall(px,py+1,c);
-        if(canCross(trail,px,py,px,py-1))
-            colorBall(px,py-1,c);
-    }
-}
-function canCross(lines,fx,fy,tx,ty)
-{
-    var res=true;
-    var f=new Object();
-    f.x=fx;
-    f.y=fy;
-    var t=new Object();
-    t.x=tx;
-    t.y=ty;
-    for(i=0;i<lines.length-1 && res;i++)
-    {
-        if(doLinesIntersect(f,t,lines[i],lines[i+1]))// || isPointOnSegment(lines[i],t,lines[i+1]))
-        {
-            res=false;
-            console.log("this");
-        }
-            
-    }
-    return res;
-}
-function doLinesIntersect(a, b, c, d)
-{
-    return ((a.y - c.y) * (d.x - c.x)) * ((a.x - b.x) * (c.y - b.y)) >= 0 && ((c.y - a.y) * (b.x - a.x)) * ((c.x - d.x) * (a.y - d.y)) >= 0;
-}
-function isPointOnSegment(p, q, r) {
-    return q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) &&
-           q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
-}
+    let isInside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x;
+        const yi = polygon[i].y;
+        const xj = polygon[j].x;
+        const yj = polygon[j].y;
 
+        const intersect = ((yi > y) !== (yj > y)) &&
+            (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+
+        if (intersect) {
+            isInside = !isInside;
+        }
+    }
+
+    return isInside;
+}
 function regenerateBall(obj)
 {
     obj.x=100;
