@@ -154,26 +154,6 @@ function draw(obj)
         obj.forEach((e) => ctx.lineTo(e.x,e.y));
         if(obj.filled)
         {
-            var angleFrom=((Math.atan2(obj[obj.length-1].y - canvasH/2, obj[obj.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
-            var angleTo=((Math.atan2(obj[0].y - canvasH/2, obj[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;            
-            if(angleFrom>angleTo || angleTo-angleFrom>180)
-            {
-                factor=-1;
-            }
-            else
-            {
-                factor=1;
-            }
-            for (var angle = angleFrom; Math.round(angle) != Math.round(angleTo); angle+=factor)
-            {
-                if(angle<0)
-                    angle+=360;
-                angle=angle%360;
-                const radians = (angle % 360) * (Math.PI / 180);
-                const x = canvasW/2 + canvasH/1.9 * Math.cos(radians);
-                const y = canvasH/2 + canvasH/1.9 * Math.sin(radians);
-                ctx.lineTo(x,y);
-            }
             ctx.fill("evenodd");
         }
         else
@@ -252,12 +232,6 @@ function run()
     ctx.clearRect(0, 0, canvasW, canvasH);
     ctx.fillStyle=bg;
     ctx.fillRect(0,0,canvasW,canvasH);
-    //border
-    ctx.fillStyle=fg;
-    ctx.fillRect(0,0,canvasW,1);
-    ctx.fillRect(0,canvasH-1,canvasW,1);
-    ctx.fillRect(0,0,1,canvasH);
-    ctx.fillRect(canvasW-1,0,1,canvasH);
     if(level==0)
     {
         ctx.fillStyle=fg;
@@ -332,10 +306,14 @@ function run()
 
         //check if it is inside a filled trail
         var outside=true;
+        var insideOf=null;
         filledTrails.forEach(el =>
         {
             if(isPointInsidePolygon(mainPg,el))
+            {
                 outside=false;
+                insideOf=el;
+            }                
         });
 
         //and marks his trail
@@ -371,11 +349,46 @@ function run()
         }
         else
         {//outside circle
+            /*TODO in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
+            if(!outside)
+            {
+                tmp=new Object();
+                tmp.x=insideOf[0].x;
+                tmp.y=insideOf[0].y;
+                trail.push(tmp);
+            }
             if(trail.length>0)
             {
                 var tmp=Array.from(trail);
                 tmp.type="trail";
                 tmp.filled=true;
+                
+                //complete the trail with a bigger circle
+                var angleFrom=((Math.atan2(tmp[tmp.length-1].y - canvasH/2, tmp[tmp.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
+                var angleTo=((Math.atan2(tmp[0].y - canvasH/2, tmp[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;            
+                if(angleFrom>angleTo || angleTo-angleFrom>180)
+                {
+                    factor=-1;
+                }
+                else
+                {
+                    factor=1;
+                }
+                for (var angle = angleFrom; Math.round(angle) != Math.round(angleTo); angle+=factor)
+                {
+                    if(angle<0)
+                        angle+=360;
+                    angle=angle%360;
+                    const radians = (angle % 360) * (Math.PI / 180);
+                    const x = canvasW/2 + canvasH/1.9 * Math.cos(radians);
+                    const y = canvasH/2 + canvasH/1.9 * Math.sin(radians);
+                    var tmp2=new Object();
+                    tmp2.x=x;
+                    tmp2.y=y;
+                    tmp.push(tmp2);
+                }
+
+
                 drawable.push(tmp);
                 filledTrails.push(tmp);
                 drawable.push(drawable.splice(drawable.findIndex(item => item.type === "ship"), 1)[0]);
@@ -400,6 +413,12 @@ function run()
     //log gesture
     oldmousex=mousex;
     oldmousey=mousey;
+    //border
+    ctx.fillStyle=fg;
+    ctx.fillRect(0,0,canvasW,1);
+    ctx.fillRect(0,canvasH-1,canvasW,1);
+    ctx.fillRect(0,0,1,canvasH);
+    ctx.fillRect(canvasW-1,0,1,canvasH);
 }
 //thanks, chatGPT
 function isPointInsidePolygon(point, polygon) {
