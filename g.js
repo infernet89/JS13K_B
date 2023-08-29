@@ -99,10 +99,10 @@ function setup()
             if(v[x]==null)
                 v[x]=[];
             for(y=0;y<canvasH;y++)
-            if(distanceFrom(canvasW/2,canvasH/2,x,y)<canvasH/2)
-            {
-                v[x][y]=0;
-            }
+                if(distanceFrom(canvasW/2,canvasH/2,x,y)<canvasH/2)
+                {
+                    v[x][y]=0;
+                }
         }            
     }
 }
@@ -195,6 +195,7 @@ function run()
     //TODO DEBUG
     if(dragging)
     {
+        detectPixelMatrix();//TODO questo va chiamato DOPO aver disegnato, sigh.
         for(var x in v)
             for(var y in v)
             {
@@ -349,16 +350,23 @@ function run()
             /*TODO in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
             if(!outside && trail.length>0)
             {
+                tmp=new Object();
+                tmp.dist=-1;
                 for (var i = 0; i < insideOf.length; i++)
                 {
                     if(insideOf[i].hit)
                     {
-                        tmp=new Object();
-                        tmp.x=insideOf[i].x;
-                        tmp.y=insideOf[i].y;
-                        trail.push(tmp);
+                        var dist=distanceFrom(canvasH/2,canvasH/2,insideOf[i].x,insideOf[i].y)
+                        if(dist>tmp.dist)
+                        {
+                            tmp.dist=dist;
+                            tmp.x=insideOf[i].x;
+                            tmp.y=insideOf[i].y;
+                        }
                     }
-                }                
+                }
+                if(tmp.dist>0)
+                    trail.push(tmp);        
             }
             if(trail.length>0)
             {
@@ -418,6 +426,33 @@ function run()
     ctx.fillRect(0,canvasH-1,canvasW,1);
     ctx.fillRect(0,0,1,canvasH);
     ctx.fillRect(canvasW-1,0,1,canvasH);
+}
+function detectPixelMatrix()
+{
+    for(var x in v)
+        for(var y in v)
+        {
+            if(v[x][y]!=0) continue;
+            if(ctx.getImageData(x, y, 1, 1).data[0]<100)
+                v[x][y]=1;
+            else
+                v[x][y]=2;
+            /*
+            var tmp=new Object();
+            tmp.x=x;
+            tmp.y=y;
+            var inside=false;
+            filledTrails.forEach(el =>
+            {
+                if(isPointInsidePolygon(tmp,el))
+                {
+                    inside=true;
+                }                
+            });
+            if(inside)
+                v[x][y]=1;
+            */
+        }    
 }
 //thanks, chatGPT
 function isPointInsidePolygon(point, polygon) {
