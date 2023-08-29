@@ -189,7 +189,7 @@ function move(obj)
         }
     }
 }
-//main loop that draw the screen
+//main loop that draw the screen and perform the game logic
 function run()
 {
     //TODO DEBUG
@@ -285,9 +285,6 @@ function run()
     }
     else if(level==3)
     {
-        //drawable.forEach(el => { draw(el); } );
-        //var shipPixel=ctx.getImageData(mainPg.x, mainPg.y, 1, 1).data[0]
-        //console.log(shipPixel);//TODO DEBUG
         //make the main pg follow the mouse
         const speed=5;
         mainPg.angle=(Math.atan2(mainPg.y - mousey, mainPg.x - mousex) * (180 / Math.PI) + 360 - 90) % 360; //thanks, chatGPT.
@@ -316,7 +313,7 @@ function run()
             }                
         });
 
-        //and marks his trail
+        //gather his trail
         if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)-10<canvasH/2//inside circle
             && outside) //outside any other conquered zone
         {
@@ -350,12 +347,18 @@ function run()
         else
         {//outside circle
             /*TODO in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
-            if(!outside)
+            if(!outside && trail.length>0)
             {
-                tmp=new Object();
-                tmp.x=insideOf[0].x;
-                tmp.y=insideOf[0].y;
-                trail.push(tmp);
+                for (var i = 0; i < insideOf.length; i++)
+                {
+                    if(insideOf[i].hit)
+                    {
+                        tmp=new Object();
+                        tmp.x=insideOf[i].x;
+                        tmp.y=insideOf[i].y;
+                        trail.push(tmp);
+                    }
+                }                
             }
             if(trail.length>0)
             {
@@ -367,13 +370,9 @@ function run()
                 var angleFrom=((Math.atan2(tmp[tmp.length-1].y - canvasH/2, tmp[tmp.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
                 var angleTo=((Math.atan2(tmp[0].y - canvasH/2, tmp[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;            
                 if(angleFrom>angleTo || angleTo-angleFrom>180)
-                {
                     factor=-1;
-                }
                 else
-                {
                     factor=1;
-                }
                 for (var angle = angleFrom; Math.round(angle) != Math.round(angleTo); angle+=factor)
                 {
                     if(angle<0)
@@ -387,16 +386,16 @@ function run()
                     tmp2.y=y;
                     tmp.push(tmp2);
                 }
-
-
+                //save the filled trail
                 drawable.push(tmp);
                 filledTrails.push(tmp);
                 drawable.push(drawable.splice(drawable.findIndex(item => item.type === "ship"), 1)[0]);
             }
+            //reset current trail
             trail.length=0;
         }
     }
-
+    //draw, move and check object collisions
     drawable.forEach(el => { draw(el); move(el); } );
     drawable.forEach(el => { 
         el.selected=isSelected(el); 
@@ -437,6 +436,13 @@ function isPointInsidePolygon(point, polygon) {
 
         if (intersect) {
             isInside = !isInside;
+            polygon[i].hit=true;
+            polygon[j].hit=true;
+        }
+        else
+        {
+            polygon[i].hit=false;
+            polygon[j].hit=false;
         }
     }
 
