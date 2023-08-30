@@ -195,7 +195,6 @@ function run()
     //TODO DEBUG
     if(dragging)
     {
-        detectPixelMatrix();//TODO questo va chiamato DOPO aver disegnato, sigh.
         for(var x in v)
             for(var y in v)
             {
@@ -347,7 +346,7 @@ function run()
         }
         else
         {//outside circle
-            /*TODO in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
+            /*in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
             if(!outside && trail.length>0)
             {
                 tmp=new Object();
@@ -376,12 +375,12 @@ function run()
                 
                 //complete the trail with a bigger circle
                 var angleFrom=((Math.atan2(tmp[tmp.length-1].y - canvasH/2, tmp[tmp.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
-                var angleTo=((Math.atan2(tmp[0].y - canvasH/2, tmp[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;            
+                var angleTo=((Math.atan2(tmp[0].y - canvasH/2, tmp[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360; 
                 if(angleFrom>angleTo || angleTo-angleFrom>180)
-                    factor=-1;
+                    factor=-10;
                 else
-                    factor=1;
-                for (var angle = angleFrom; Math.round(angle) != Math.round(angleTo); angle+=factor)
+                    factor=10;
+                for (var angle = angleFrom; Math.abs(angle-angleTo)>10; angle+=factor)
                 {
                     if(angle<0)
                         angle+=360;
@@ -398,6 +397,8 @@ function run()
                 drawable.push(tmp);
                 filledTrails.push(tmp);
                 drawable.push(drawable.splice(drawable.findIndex(item => item.type === "ship"), 1)[0]);
+                //update matrix
+                detectPixelMatrix(tmp);
             }
             //reset current trail
             trail.length=0;
@@ -427,16 +428,23 @@ function run()
     ctx.fillRect(0,0,1,canvasH);
     ctx.fillRect(canvasW-1,0,1,canvasH);
 }
-function detectPixelMatrix()
+function detectPixelMatrix(polygon=null)
 {
+    var numberOfPinkPixels=0;
     for(var x in v)
         for(var y in v)
         {
             if(v[x][y]!=0) continue;
-            if(ctx.getImageData(x, y, 1, 1).data[0]<100)
+            var tmp=new Object();
+            tmp.x=x;
+            tmp.y=y;
+            if(polygon!=null && isPointInsidePolygon(tmp,polygon))
+                v[x][y]=1;
+            /*if(ctx.getImageData(x, y, 1, 1).data[0]<100)
                 v[x][y]=1;
             else
                 v[x][y]=2;
+            */
             /*
             var tmp=new Object();
             tmp.x=x;
@@ -452,7 +460,10 @@ function detectPixelMatrix()
             if(inside)
                 v[x][y]=1;
             */
+            if(v[x][y]==0)
+                numberOfPinkPixels++;
         }    
+    console.log("Number of Pink:",numberOfPinkPixels);
 }
 //thanks, chatGPT
 function isPointInsidePolygon(point, polygon) {
