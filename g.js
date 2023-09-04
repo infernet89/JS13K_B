@@ -440,30 +440,27 @@ function detectPixelMatrix(polygon=null)
             tmp.y=y;
             if(polygon!=null && isPointInsidePolygon(tmp,polygon))
                 v[x][y]=1;
-            /*if(ctx.getImageData(x, y, 1, 1).data[0]<100)
-                v[x][y]=1;
-            else
-                v[x][y]=2;
-            */
-            /*
-            var tmp=new Object();
-            tmp.x=x;
-            tmp.y=y;
-            var inside=false;
-            filledTrails.forEach(el =>
-            {
-                if(isPointInsidePolygon(tmp,el))
-                {
-                    inside=true;
-                }                
-            });
-            if(inside)
-                v[x][y]=1;
-            */
             if(v[x][y]==0)
                 numberOfPinkPixels++;
         }    
-    console.log("Number of Pink:",numberOfPinkPixels);
+    console.log("Number of Pink:",numberOfPinkPixels);//TODO DEBUG
+    //TODO se sotto soglia, riduci i cluster (rimuovi i pixel che non sono circondati diagonali escluse) Fallo N volte.
+    if(numberOfPinkPixels<10000)
+    {
+        console.log("Reducing clusters");//TODO DEBUG
+        for(i=1;i<5;i++)
+        {
+            for(var x in v)
+                for(var y in v)
+                {
+                    if(v[x][y]!=0) continue;
+                    if(v[x-1][y]==null || v[x-1][y]==i) v[x][y]=i+1;
+                    if(v[x+1][y]==null || v[x+1][y]==i) v[x][y]=i+1;
+                    if(v[x][y-1]==null || v[x][y-1]==i) v[x][y]=i+1;
+                    if(v[x][y+1]==null || v[x][y+1]==i) v[x][y]=i+1;
+                }
+        }
+    }
 }
 //thanks, chatGPT
 function isPointInsidePolygon(point, polygon) {
