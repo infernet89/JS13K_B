@@ -15,9 +15,7 @@ var level=0;
 var drawable=[];
 var cooldown=0;
 var mainPg;
-var trail=[];
-var filledTrails=[];
-var v=[];
+var shootCooldown=0;
 
 //TODO DEBUG
 level=3;
@@ -87,23 +85,7 @@ function setup()
         mainPg.angle=90;
         mainPg.x=-20;
         mainPg.y=-20;
-        drawable.push(mainPg);
-
-        trail=[];
-        trail.type="trail";
-        drawable.push(trail);
-
-        //boolean matrix of colored pixel (that are inside the circle)
-        for(x=0;x<canvasW;x++)
-        {
-            if(v[x]==null)
-                v[x]=[];
-            for(y=0;y<canvasH;y++)
-                if(distanceFrom(canvasW/2,canvasH/2,x,y)<canvasH/2)
-                {
-                    v[x][y]=0;
-                }
-        }            
+        drawable.push(mainPg);          
     }
 }
 //level up!
@@ -114,7 +96,7 @@ function levelUp()
     /*
         1 - clickCircle
         2 - absorbeCircles
-        3 - Tron (survivor.io)
+        3 - Asteroid
         4 - Snake
         5 - arkanoid
         6 - Pong
@@ -147,21 +129,18 @@ function draw(obj)
             ctx.fillRect(+i/2,i,3,3);
         }
     }
-    else if(obj.type=="trail")
+    else if(obj.type=="projectile")
     {
-        ctx.beginPath();
-        ctx.fillStyle=bg;
-        obj.forEach((e) => ctx.lineTo(e.x,e.y));
-        if(obj.filled)
+        ctx.translate(obj.x,obj.y);
+        ctx.rotate((obj.angle* Math.PI) / 180);
+        ctx.fillStyle=fg;
+        for(i=0;i<obj.size;i++)
         {
-            ctx.fill("evenodd");
+            ctx.fillRect(-i*2,0,2,1);
         }
-        else
-            ctx.stroke();
     }
     ctx.restore();
 }
-
 function move(obj)
 {
     if(obj.dx==null || obj.dy==null) return;
@@ -192,43 +171,6 @@ function move(obj)
 //main loop that draw the screen and perform the game logic
 function run()
 {
-    //TODO DEBUG
-    if(dragging)
-    {
-        for(var x in v)
-            for(var y in v)
-            {
-                if(v[x][y]==0)
-                {
-                    ctx.fillStyle="#F00";
-                }
-                else if(v[x][y]==1)
-                {
-                    ctx.fillStyle="#0F0";
-                }
-                else if(v[x][y]==2)
-                {
-                    ctx.fillStyle="#00F";
-                }
-                else if(v[x][y]==3)
-                {
-                    ctx.fillStyle="#FF0";
-                }
-                else if(v[x][y]==4)
-                {
-                    ctx.fillStyle="#0FF";
-                }
-                else if(v[x][y]==5)
-                {
-                    ctx.fillStyle="#F0F";
-                }
-                if(v[x][y]!=null)
-                    ctx.fillRect(x,y,1,1);
-            }
-        return;
-    }        
-    //TODO DEBUG
-
     ctx.clearRect(0, 0, canvasW, canvasH);
     ctx.fillStyle=bg;
     ctx.fillRect(0,0,canvasW,canvasH);
@@ -301,107 +243,22 @@ function run()
         else if(mainPg.y>mousey)
             mainPg.dy=-speed;
 
-        //check if it is inside a filled trail
-        var outside=true;
-        var insideOf=null;
-        filledTrails.forEach(el =>
+        //shoot a projectile
+        if(shootCooldown--<0)
         {
-            if(isPointInsidePolygon(mainPg,el))
-            {
-                outside=false;
-                insideOf=el;
-            }                
-        });
+            console.log("Fire!");//TODO DEBUG
+            var tmp=new Object();
+            tmp.type="projectile";
+            tmp.x=mainPg.x;
+            tmp.y=mainPg.y;
+            tmp.size=10;
+            tmp.angle=(mainPg.angle+270)%360;
+            //TODO calcola i vettori dx e dy in modo che vadano nella direzione giusta ad una velocità sensata
+            tmp.dx=(mousex-tmp.x)/20;
+            tmp.dy=(mousey-tmp.y)/20;
+            drawable.push(tmp);
 
-        //gather his trail
-        if(distanceFrom(canvasW/2,canvasH/2,mainPg.x,mainPg.y)-10<canvasH/2//inside circle
-            && outside) //outside any other conquered zone
-        {
-            var toMark=true;
-            //simplify, if possible
-            if(trail.length>1)
-            {
-                //stuck
-                if(trail[trail.length-1].x==mainPg.x && trail[trail.length-1].y==mainPg.y)
-                {
-                    toMark=false;
-                }
-                //same direction
-                else if((Math.atan2(mainPg.y - trail[trail.length-1].y, mainPg.x - trail[trail.length-1].x) * (180 / Math.PI) + 360 - 90) % 360 
-                    ==  (Math.atan2(trail[trail.length-1].y - trail[trail.length-2].y, trail[trail.length-1].x - trail[trail.length-2].x) * (180 / Math.PI) + 360 - 90) % 360)
-                {
-                    trail[trail.length-1].x=mainPg.x;
-                    trail[trail.length-1].y=mainPg.y;
-                    toMark=false;
-                }
-            }
-            //mark trail
-            if(toMark)
-            {
-                tmp=new Object();
-                tmp.x=mainPg.x;
-                tmp.y=mainPg.y;
-                trail.push(tmp);
-            }
-        }
-        else
-        {//outside circle
-            /*in qualche modo, gestisci meglio se finisce all'interno di un altro poligono*/
-            if(!outside && trail.length>0)
-            {
-                tmp=new Object();
-                tmp.dist=-1;
-                for (var i = 0; i < insideOf.length; i++)
-                {
-                    if(insideOf[i].hit)
-                    {
-                        var dist=distanceFrom(canvasH/2,canvasH/2,insideOf[i].x,insideOf[i].y)
-                        if(dist>tmp.dist)
-                        {
-                            tmp.dist=dist;
-                            tmp.x=insideOf[i].x;
-                            tmp.y=insideOf[i].y;
-                        }
-                    }
-                }
-                if(tmp.dist>0)
-                    trail.push(tmp);        
-            }
-            if(trail.length>0)
-            {
-                var tmp=Array.from(trail);
-                tmp.type="trail";
-                tmp.filled=true;
-                
-                //complete the trail with a bigger circle
-                var angleFrom=((Math.atan2(tmp[tmp.length-1].y - canvasH/2, tmp[tmp.length-1].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360;
-                var angleTo=((Math.atan2(tmp[0].y - canvasH/2, tmp[0].x - canvasW/2) + 2 * Math.PI) * 180 / Math.PI) % 360; 
-                if(angleFrom>angleTo || angleTo-angleFrom>180)
-                    factor=-10;
-                else
-                    factor=10;
-                for (var angle = angleFrom; Math.abs(angle-angleTo)>10; angle+=factor)
-                {
-                    if(angle<0)
-                        angle+=360;
-                    angle=angle%360;
-                    const radians = (angle % 360) * (Math.PI / 180);
-                    const x = canvasW/2 + canvasH/1.9 * Math.cos(radians);
-                    const y = canvasH/2 + canvasH/1.9 * Math.sin(radians);
-                    var tmp2=new Object();
-                    tmp2.x=x;
-                    tmp2.y=y;
-                    tmp.push(tmp2);
-                }
-                //save the filled trail
-                drawable.push(tmp);
-                filledTrails.push(tmp);
-                drawable.push(drawable.splice(drawable.findIndex(item => item.type === "ship"), 1)[0]);
-                //update matrix
-                detectPixelMatrix(tmp);
-            }
-            //reset current trail
-            trail.length=0;
+            shootCooldown=30;
         }
     }
     //draw, move and check object collisions
@@ -427,69 +284,6 @@ function run()
     ctx.fillRect(0,canvasH-1,canvasW,1);
     ctx.fillRect(0,0,1,canvasH);
     ctx.fillRect(canvasW-1,0,1,canvasH);
-}
-function detectPixelMatrix(polygon=null)
-{
-    var numberOfPinkPixels=0;
-    for(var x in v)
-        for(var y in v)
-        {
-            if(v[x][y]!=0) continue;
-            var tmp=new Object();
-            tmp.x=x;
-            tmp.y=y;
-            if(polygon!=null && isPointInsidePolygon(tmp,polygon))
-                v[x][y]=1;
-            if(v[x][y]==0)
-                numberOfPinkPixels++;
-        }    
-    console.log("Number of Pink:",numberOfPinkPixels);//TODO DEBUG
-    //TODO se sotto soglia, riduci i cluster (rimuovi i pixel che non sono circondati diagonali escluse) Fallo N volte.
-    if(numberOfPinkPixels<10000)
-    {
-        console.log("Reducing clusters");//TODO DEBUG
-        for(i=1;i<5;i++)
-        {
-            for(var x in v)
-                for(var y in v)
-                {
-                    if(v[x][y]!=0) continue;
-                    if(v[x-1][y]==null || v[x-1][y]==i) v[x][y]=i+1;
-                    if(v[x+1][y]==null || v[x+1][y]==i) v[x][y]=i+1;
-                    if(v[x][y-1]==null || v[x][y-1]==i) v[x][y]=i+1;
-                    if(v[x][y+1]==null || v[x][y+1]==i) v[x][y]=i+1;
-                }
-        }
-    }
-}
-//thanks, chatGPT
-function isPointInsidePolygon(point, polygon) {
-    const x = point.x;
-    const y = point.y;
-    
-    let isInside = false;
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x;
-        const yi = polygon[i].y;
-        const xj = polygon[j].x;
-        const yj = polygon[j].y;
-
-        const intersect = ((yi > y) !== (yj > y)) &&
-            (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
-
-        if (intersect) {
-            isInside = !isInside;
-            polygon[i].hit=true;
-            polygon[j].hit=true;
-        }
-        else
-        {
-            polygon[i].hit=false;
-            polygon[j].hit=false;
-        }
-    }
-
-    return isInside;
 }
 function regenerateBall(obj)
 {
