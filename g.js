@@ -15,11 +15,13 @@ var level=0;
 var drawable=[];
 var cooldown=0;
 var mainPg;
-var shootCooldown=0;
-var shootCooldownTreshold=30;
+var cooldown=0;
+var cooldownTreshold=30;
+var snakeGrow=0;
+var tail;
 
 //TODO DEBUG
-level=3;
+level=4;
 //TODO DEBUG
 
 //setup
@@ -92,6 +94,45 @@ function setup()
 
         canvas.style.cursor="default";       
     }
+    else if(level==4)
+    {
+        //TODO guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
+        //TODO normalizza la posizione in modo che sia %32, e angle %90;
+        mainPg=new Object();
+        mainPg.type="head";
+        mainPg.size=32;
+        //TODO DEBUG
+        mainPg.x=128*8;
+        mainPg.y=128;
+        mainPg.angle=270;
+        drawable.push(mainPg);
+        //TODO DEBUG
+        var dx;
+        var dy;
+        if(mainPg.angle==0)
+        {
+            dx=0;
+            dy=32;
+        }
+        else if(mainPg.angle==90)
+        {
+            dx=-32;
+            dy=0;
+        }
+        else if(mainPg.angle==180)
+        {
+            dx=0;
+            dy=-32;
+        }
+        else if(mainPg.angle==270)
+        {
+            dx=32;
+            dy=0;
+        }
+        tail=mainPg;
+        snakeGrow=10;
+        cooldownTreshold=32;
+    }
 }
 //level up!
 function levelUp()
@@ -143,6 +184,45 @@ function draw(obj)
         {
             ctx.fillRect(-i*2,0,2,1);
         }
+    }
+    else if(obj.type=="head")
+    {
+        ctx.translate(obj.x,obj.y);
+        ctx.rotate((obj.angle* Math.PI) / 180);
+        ctx.translate(-obj.size/2,-obj.size/2);
+        ctx.translate(obj.size/2-2,0);
+        for(i=0;i<obj.size;i++)
+        {
+            if(i%2)
+                ctx.fillStyle=fg;
+            else
+                ctx.fillStyle=bg;
+            ctx.fillRect(-i/2,i,3,3);
+            ctx.fillRect(+i/2,i,3,3);
+        }
+        //eyes
+        ctx.fillStyle=fg;
+        ctx.beginPath();
+        ctx.arc(-3, 25, 2, 0, 2 * Math.PI);
+        ctx.arc(5, 25, 2, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle=bg; 
+        ctx.beginPath();
+        ctx.arc(-3, 25, 1, 0, 2 * Math.PI);
+        ctx.arc(5, 25, 1, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle="#F00";
+    }
+    else if(obj.type=="body")
+    {
+        ctx.translate(obj.x,obj.y);
+        ctx.rotate((obj.angle* Math.PI) / 180);
+        ctx.translate(-obj.size/2,-obj.size/2);
+        ctx.fillStyle=fg;
+        ctx.fillRect(0,0,32,32);
+        ctx.fillStyle=bg;
+        ctx.fillRect(2,5,20,5);
+        ctx.fillRect(10,20,20,5);
     }
     ctx.restore();
 }
@@ -251,7 +331,7 @@ function run()
         }
 
         //shoot a projectile
-        if(shootCooldown--<0)
+        if(cooldown--<0)
         {
             var tmp=new Object();
             tmp.type="projectile";
@@ -263,7 +343,7 @@ function run()
             tmp.dy=dy/length*bulletSpeed;
             drawable.push(tmp);
 
-            shootCooldown=shootCooldownTreshold;
+            cooldown=cooldownTreshold;
         }
         //rimuove da drawable ciò che non è più applicabile
         for (var i = drawable.length - 1; i >= 0; i--)
@@ -283,14 +363,14 @@ function run()
                 if(distanceFrom(el.x,el.y,ball.x,ball.y)<ball.radius-el.size)
                 {
                     el.x=-100;
-                    shootCooldown=5;
+                    cooldown=5;
                     ball.dx+=el.dx/ball.radius*10;
                     ball.dy+=el.dy/ball.radius*10;
-                    ball.radius-=5;
+                    ball.radius-=8;
                     //split the ball after 10 hit
                     if(ball.damage++>8)
                     {                        
-                        shootCooldownTreshold-=3;
+                        cooldownTreshold-=3;
                         var tmp=new Object();
                         tmp.type="circle";
                         tmp.radius=ball.radius/2;
@@ -391,9 +471,64 @@ function run()
         } );
 
     }
+    else if(level==4)
+    {
+        if(--cooldown<0)
+        {
+            tmp=tail;
+            //move
+            drawable.filter(el => el.type=="head" || el.type=="body").forEach(el => {
+                if(el.angle==0)
+                {
+                    el.dx=0;
+                    el.dy=-32;
+                }
+                else if(el.angle==90)
+                {
+                    el.dx=32;
+                    el.dy=0;
+                }
+                else if(el.angle==180)
+                {
+                    el.dx=0;
+                    el.dy=32;
+                }
+                else if(el.angle==270)
+                {
+                    el.dx=-32;
+                    el.dy=0;
+                }
+            });
+            //follow
+            while(tmp.prev!=null)
+            {
+                tmp.angle=tmp.prev.angle;
+                tmp=tmp.prev;
+            }
+            //grow
+            if(snakeGrow-- > 0)
+            {
+                var tmp=new Object();
+                tmp.type="body";
+                tmp.size=32;
+                tmp.x=tail.x;
+                tmp.y=tail.y;
+                tmp.angle=tail.angle;
+                tmp.prev=tail;
+                drawable.push(tmp);
+                tail=tmp;
+            }
+            cooldown=cooldownTreshold;
+        }
+        else
+        {
+            drawable.filter(el => el.type=="head" || el.type=="body").forEach(el => { el.dx=0;el.dy=0});
+        }
+    }
+
     //draw, move and check object collisions
     drawable.forEach(el => { move(el); draw(el); } );
-    if(level==3)
+    if(level==3 || level==4)
     {
         draw(mainPg);
     }
