@@ -16,6 +16,7 @@ var drawable=[];
 var cooldown=0;
 var mainPg;
 var shootCooldown=0;
+var shootCooldownTreshold=30;
 
 //TODO DEBUG
 level=3;
@@ -76,16 +77,20 @@ function setup()
         tmp.radius=canvasH/2;
         tmp.x=canvasW/2;
         tmp.y=canvasH/2;
+        tmp.dx=0;
+        tmp.dy=0;
+        tmp.damage=0;
         drawable.push(tmp);
-        canvas.style.cursor="default";
-
+        
         mainPg=new Object();
         mainPg.type="ship";
         mainPg.size=20;
         mainPg.angle=90;
         mainPg.x=-20;
         mainPg.y=-20;
-        drawable.push(mainPg);          
+        drawable.push(mainPg);   
+
+        canvas.style.cursor="default";       
     }
 }
 //level up!
@@ -229,40 +234,169 @@ function run()
     {
         //make the main pg follow the mouse
         const speed=5;
+        const bulletSpeed=15;
+        const dx=mousex - mainPg.x;
+        const dy=mousey - mainPg.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
         mainPg.angle=(Math.atan2(mainPg.y - mousey, mainPg.x - mousex) * (180 / Math.PI) + 360 - 90) % 360; //thanks, chatGPT.
-        if(Math.abs(mainPg.x-mousex)<=speed)
+        if(dragging || length<5)
+        {
             mainPg.dx=0;
-        else if(mainPg.x<mousex)
-            mainPg.dx=speed;
-        else if(mainPg.x>mousex)
-            mainPg.dx=-speed;
-        if(Math.abs(mainPg.y-mousey)<=speed)
             mainPg.dy=0;
-        else if(mainPg.y<mousey)
-            mainPg.dy=speed;
-        else if(mainPg.y>mousey)
-            mainPg.dy=-speed;
+        }
+        else
+        {
+            mainPg.dx=dx/length*speed;
+            mainPg.dy=dy/length*speed;
+        }
 
         //shoot a projectile
         if(shootCooldown--<0)
         {
-            console.log("Fire!");//TODO DEBUG
             var tmp=new Object();
             tmp.type="projectile";
             tmp.x=mainPg.x;
             tmp.y=mainPg.y;
             tmp.size=10;
             tmp.angle=(mainPg.angle+270)%360;
-            //TODO calcola i vettori dx e dy in modo che vadano nella direzione giusta ad una velocità sensata
-            tmp.dx=(mousex-tmp.x)/20;
-            tmp.dy=(mousey-tmp.y)/20;
+            tmp.dx=dx/length*bulletSpeed;
+            tmp.dy=dy/length*bulletSpeed;
             drawable.push(tmp);
 
-            shootCooldown=30;
+            shootCooldown=shootCooldownTreshold;
         }
+        //rimuove da drawable ciò che non è più applicabile
+        for (var i = drawable.length - 1; i >= 0; i--)
+        {
+            if( (drawable[i].type == "projectile") &&
+            (drawable[i].x<0 || drawable[i].y<0 || drawable[i].x> canvasW || drawable[i].y>canvasH) )
+                drawable.splice(i, 1);
+            else if(drawable[i].type == "circle" && drawable[i].radius<20)
+                drawable.splice(i, 1);
+        }
+        //controlla le collisioni tra palle e tutto il resto 
+        drawable.filter(el => el.type=="circle").forEach(ball => 
+        { 
+            //colpito da proiettile
+            drawable.filter(el => el.type=="projectile").forEach(el =>
+            {
+                if(distanceFrom(el.x,el.y,ball.x,ball.y)<ball.radius-el.size)
+                {
+                    el.x=-100;
+                    shootCooldown=5;
+                    ball.dx+=el.dx/ball.radius*10;
+                    ball.dy+=el.dy/ball.radius*10;
+                    ball.radius-=5;
+                    //split the ball after 10 hit
+                    if(ball.damage++>8)
+                    {                        
+                        shootCooldownTreshold-=3;
+                        var tmp=new Object();
+                        tmp.type="circle";
+                        tmp.radius=ball.radius/2;
+                        tmp.x=ball.x+tmp.radius;
+                        tmp.y=ball.y-tmp.radius;
+                        tmp.dx=ball.dx;
+                        tmp.dy=ball.dy;
+                        tmp.damage=0;
+                        drawable.push(tmp);
+                        var tmp=new Object();
+                        tmp.type="circle";
+                        tmp.radius=ball.radius/2;
+                        tmp.x=ball.x+tmp.radius;
+                        tmp.y=ball.y+tmp.radius;
+                        tmp.dx=ball.dx;
+                        tmp.dy=ball.dy;
+                        tmp.damage=0;
+                        drawable.push(tmp);
+                        var tmp=new Object();
+                        tmp.type="circle";
+                        tmp.radius=ball.radius/2;
+                        tmp.x=ball.x-tmp.radius;
+                        tmp.y=ball.y+tmp.radius;
+                        tmp.dx=ball.dx;
+                        tmp.dy=ball.dy;
+                        tmp.damage=0;
+                        drawable.push(tmp);
+                        
+                        ball.radius=ball.radius/2;
+                        ball.x-=ball.radius;
+                        ball.y-=ball.radius;
+                        ball.damage=0;
+                    }
+                    
+                }
+            } );
+            //bounce from other balls
+            drawable.filter(el => el.type=="circle" && el!=ball).forEach(b2 => 
+            {
+                if(distanceFrom(ball.x,ball.y,b2.x,b2.y)<=ball.radius+b2.radius)
+                {
+                    var tmp=ball.dx;
+                    ball.dx=b2.dx/ball.radius*b2.radius;
+                    b2.dx=tmp/b2.radius*ball.radius;
+
+                    tmp=ball.dy;
+                    ball.dy=b2.dy/ball.radius*b2.radius;
+                    b2.dy=tmp/b2.radius*ball.radius;
+                    //se sono già compenetranti, le separo a forza
+                    while(distanceFrom(ball.x+ball.dx,ball.y+ball.dy,b2.x+b2.dx,b2.y+b2.dy)<ball.radius+b2.radius)
+                    {
+                        if(ball.x<b2.x)
+                        {
+                            ball.dx--;
+                            b2.dx++;
+                        }
+                        else
+                        {
+                            ball.dx++;
+                            b2.dx--;
+                        }
+                        if(ball.y<b2.y)
+                        {
+                            ball.dy--;
+                            b2.dy++;
+                        }
+                        else
+                        {
+                            ball.dy++;
+                            b2.dy--;
+                        }
+                    }
+                }
+            });
+            //bounce from borders
+            if(ball.x<=ball.radius && ball.dx<0)
+                ball.dx*=-1;
+            if(ball.y<=ball.radius && ball.dy<0)
+                ball.dy*=-1;
+            if(ball.x>=canvasW-ball.radius && ball.dx>0)
+                ball.dx*=-1;
+            if(ball.y>=canvasH-ball.radius && ball.dy>0)
+                ball.dy*=-1;
+            //force exit from borders
+            if(ball.x+ball.dx<ball.radius)
+                ball.dx++;
+            if(ball.y+ball.dy<ball.radius)
+                ball.dy++;
+            if(ball.x+ball.dx>canvasW-ball.radius)
+                ball.dx--;
+            if(ball.y+ball.dy>canvasH-ball.radius)
+                ball.dy--;
+            //la palla si muove con un po' di attrito.
+            if(Math.abs(ball.dx*=0.97)<0.1 || Math.abs(ball.dx)>30)
+                ball.dx=0;
+            if(Math.abs(ball.dy*=0.97)<0.1 || Math.abs(ball.dy)>30)
+                ball.dy=0;
+        } );
+
     }
     //draw, move and check object collisions
-    drawable.forEach(el => { draw(el); move(el); } );
+    drawable.forEach(el => { move(el); draw(el); } );
+    if(level==3)
+    {
+        draw(mainPg);
+    }
     drawable.forEach(el => { 
         el.selected=isSelected(el); 
         if(el.clickable && el.selected) 
