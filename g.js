@@ -158,7 +158,8 @@ function setup()
         }
         tail=mainPg;
         snakeGrow=3;
-        cooldownTreshold=32;
+        snakeGrow=20;//TODO DEBUG
+        cooldownTreshold=8;
         drawable=drawable.filter(el => el.type=="circle" || el.type=="head");
     }
 }
@@ -513,7 +514,7 @@ function run()
     }
     else if(level==4)
     {
-        if(--cooldown<0)
+        if(!dragging && --cooldown<0)
         {
             //turn head
             var dx=mainPg.x-mousex;
@@ -562,6 +563,15 @@ function run()
                     el.dx=-32;
                     el.dy=0;
                 }
+                //warp
+                if(el.angle==0 && el.y<32)
+                    el.y=canvasH;
+                else if(el.angle==90 && el.x>canvasW-32)
+                    el.x=0;
+                else if(el.angle==180 && el.y>canvasH-32)
+                    el.y=0;
+                else if(el.angle==270 && el.x<32)
+                    el.x=canvasW;
             });
             //grow
             if(snakeGrow-- > 0)
@@ -573,21 +583,116 @@ function run()
                 tmp.y=tail.y;
                 tmp.angle=tail.angle;
                 tmp.prev=tail;
+                tail.next=tmp;
                 drawable.push(tmp);
                 tail=tmp;
             }
+            else snakeGrow=0;
             //follow
             tmp=tail;
             while(tmp.prev!=null)
             {
                 tmp.angle=tmp.prev.angle;
                 tmp=tmp.prev;
+
             }
+            //eat
+            for (var i = drawable.length - 1; i >= 0; i--)
+            {
+                if(drawable[i].type == "circle" && distanceFrom(mainPg.x,mainPg.y,drawable[i].x,drawable[i].y)<16)
+                {
+                    snakeGrow+=3;
+                    drawable.splice(i, 1);
+                }
+                //TODO eat a piece of himself
+                /*if(drawable[i].type == "body" && distanceFrom(mainPg.x,mainPg.y,drawable[i].x+drawable[i].dx,drawable[i].y+drawable[i].dy)<16 && drawable[i].prev!=mainPg)
+                {
+                    console.log("EAT HIMSELF");//TODO DEBUG
+                    //drawable[i].next.prev=drawable[i].prev;
+                    drawable.splice(i, 1);
+                }*/
+            }                
             cooldown=cooldownTreshold;
         }
         else
         {
-            drawable.filter(el => el.type=="head" || el.type=="body").forEach(el => { el.dx=0;el.dy=0});
+            var nEggs=0;
+            drawable.filter(el => el.type=="head" || el.type=="body" || el.type=="circle").forEach(el => {
+                el.dx=0;
+                el.dy=0;
+                if(el.type=="circle")
+                {
+                    nEggs++;
+                    //vibration
+                    el.x=Math.round(el.x/32)*32+rand(-0.1,0.1);
+                    el.y=Math.round(el.y/32)*32+rand(-0.1,0.1);
+                }
+                //warp
+                if(el.y<32)
+                {
+                    var tmp=new Object();
+                    tmp.type=el.type;
+                    tmp.size=el.size;
+                    tmp.angle=el.angle;
+                    tmp.x=el.x;
+                    tmp.y=canvasH;
+                    draw(tmp);
+                }
+                if(el.x>canvasW-32)
+                {
+                    var tmp=new Object();
+                    tmp.type=el.type;
+                    tmp.size=el.size;
+                    tmp.angle=el.angle;
+                    tmp.x=0;
+                    tmp.y=el.y;
+                    draw(tmp);
+                }
+                if(el.y>canvasH-32)
+                {
+                    var tmp=new Object();
+                    tmp.type=el.type;
+                    tmp.size=el.size;
+                    tmp.angle=el.angle;
+                    tmp.x=el.x;
+                    tmp.y=0;
+                    draw(tmp);
+                }
+                if(el.x<32)
+                {
+                    var tmp=new Object();
+                    tmp.type=el.type;
+                    tmp.size=el.size;
+                    tmp.angle=el.angle;
+                    tmp.x=canvasW;
+                    tmp.y=el.y;
+                    draw(tmp);
+                }
+            });
+            //maybe spawn an egg?
+            if(rand(0,1000)>970+nEggs*3)
+            {
+                var tmp=new Object();
+                tmp.type="circle";
+                tmp.radius=12;
+                tmp.x=mainPg.x;
+                tmp.y=mainPg.y;
+                tmp.dx=0;
+                tmp.dy=0;
+                var isLegit=false;
+                while(!isLegit)
+                {
+                    tmp.x=rand(1,canvasW/32-1)*32;
+                    tmp.y=rand(1,canvasH/32-1)*32;
+                    isLegit=true;
+                    drawable.filter(el => el.type=="head" || el.type=="body" || el.type=="circle").forEach(el =>
+                    {
+                        if(distanceFrom(tmp.x,tmp.y,el.x,el.y)<32)
+                            isLegit=false;
+                    });
+                }
+                drawable.push(tmp);
+            }
         }
     }
 
