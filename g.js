@@ -21,7 +21,7 @@ var snakeGrow=0;
 var tail;
 
 //TODO DEBUG
-level=4;
+level=0;
 //TODO DEBUG
 
 //setup
@@ -96,7 +96,7 @@ function setup()
     }
     else if(level==4)
     {
-        /*TODO DEBUG/guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
+        //guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
         mainPg.x=mainPg.x-mainPg.x%32;
         mainPg.y=mainPg.y-mainPg.y%32;
         mainPg.angle=mainPg.angle-mainPg.angle%90;
@@ -116,11 +116,12 @@ function setup()
             ball.dx=0;
             ball.dy=0;
         });
-        */
-        mainPg=new Object();//TODO DEBUG
+        
+        //mainPg=new Object();//TODO DEBUG
         mainPg.type="head";
+        mainPg.eaten=0;
         mainPg.size=32;
-        //TODO DEBUG
+        /*/TODO <DEBUG>
         mainPg.x=128*8;
         mainPg.y=128;
         mainPg.angle=270;
@@ -133,7 +134,7 @@ function setup()
         tmp.dx=0;
         tmp.dy=0;
         drawable.push(tmp);
-        //TODO DEBUG
+        //TODO </DEBUG>*/
         var dx;
         var dy;
         if(mainPg.angle==0)
@@ -158,7 +159,6 @@ function setup()
         }
         tail=mainPg;
         snakeGrow=3;
-        snakeGrow=20;//TODO DEBUG
         cooldownTreshold=8;
         drawable=drawable.filter(el => el.type=="circle" || el.type=="head");
     }
@@ -248,7 +248,7 @@ function draw(obj)
         ctx.fill();
         ctx.fillStyle="#F00";
     }
-    else if(obj.type=="body")
+    else if(obj.type=="body" && obj.eaten!=1)
     {
         ctx.translate(obj.x,obj.y);
         ctx.rotate((obj.angle* Math.PI) / 180);
@@ -583,18 +583,20 @@ function run()
                 tmp.y=tail.y;
                 tmp.angle=tail.angle;
                 tmp.prev=tail;
-                tail.next=tmp;
+                tmp.eaten=0;
                 drawable.push(tmp);
                 tail=tmp;
             }
             else snakeGrow=0;
             //follow
+            var snakeLength=0;
             tmp=tail;
             while(tmp.prev!=null)
             {
                 tmp.angle=tmp.prev.angle;
+                tmp.eaten=tmp.prev.eaten;
                 tmp=tmp.prev;
-
+                snakeLength++;
             }
             //eat
             for (var i = drawable.length - 1; i >= 0; i--)
@@ -604,14 +606,20 @@ function run()
                     snakeGrow+=3;
                     drawable.splice(i, 1);
                 }
-                //TODO eat a piece of himself
-                /*if(drawable[i].type == "body" && distanceFrom(mainPg.x,mainPg.y,drawable[i].x+drawable[i].dx,drawable[i].y+drawable[i].dy)<16 && drawable[i].prev!=mainPg)
+                else
                 {
-                    console.log("EAT HIMSELF");//TODO DEBUG
-                    //drawable[i].next.prev=drawable[i].prev;
-                    drawable.splice(i, 1);
-                }*/
+                    //eat a piece of himself
+                    if(drawable[i].type == "body" && distanceFrom(mainPg.x,mainPg.y,drawable[i].x+drawable[i].dx,drawable[i].y+drawable[i].dy)<16 && drawable[i].prev!=mainPg)
+                        drawable[i].eaten=1;
+                    if(drawable[i].eaten==1 && drawable[i]==tail)
+                    {
+                        tail=drawable[i].prev;
+                        drawable.splice(i, 1);
+                    }
+                }
             }                
+            if(snakeLength>80)
+                levelUp();
             cooldown=cooldownTreshold;
         }
         else
@@ -637,6 +645,7 @@ function run()
                     tmp.x=el.x;
                     tmp.y=canvasH;
                     draw(tmp);
+                    delete tmp;
                 }
                 if(el.x>canvasW-32)
                 {
@@ -647,6 +656,7 @@ function run()
                     tmp.x=0;
                     tmp.y=el.y;
                     draw(tmp);
+                    delete tmp;
                 }
                 if(el.y>canvasH-32)
                 {
@@ -657,6 +667,7 @@ function run()
                     tmp.x=el.x;
                     tmp.y=0;
                     draw(tmp);
+                    delete tmp;
                 }
                 if(el.x<32)
                 {
@@ -667,6 +678,7 @@ function run()
                     tmp.x=canvasW;
                     tmp.y=el.y;
                     draw(tmp);
+                    delete tmp;
                 }
             });
             //maybe spawn an egg?
