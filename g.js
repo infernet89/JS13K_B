@@ -41,9 +41,9 @@ setInterval(run, 33);
 //setup all the objects
 function setup()
 {
-    drawable=[];
     if(level==0)
     {
+        drawable=[];
         var tmp=new Object();
         tmp.type="circle";
         tmp.x=canvasW/2;
@@ -96,9 +96,28 @@ function setup()
     }
     else if(level==4)
     {
-        //TODO guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
-        //TODO normalizza la posizione in modo che sia %32, e angle %90;
-        mainPg=new Object();
+        /*TODO DEBUG/guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
+        mainPg.x=mainPg.x-mainPg.x%32;
+        mainPg.y=mainPg.y-mainPg.y%32;
+        mainPg.angle=mainPg.angle-mainPg.angle%90;
+        drawable.filter(el => el.type=="circle").forEach(ball =>
+        {
+            ball.x=ball.x-ball.x%32;
+            if(ball.x<=0)
+                ball.x=32;
+            if(ball.x>=canvasW)
+                ball.x=canvasW-32;
+            if(ball.y<=0)
+                ball.y=32;
+            if(ball.y>=canvasH)
+                ball.y=canvasH-32;
+            ball.y=ball.y-ball.y%32;
+            ball.radius=12;
+            ball.dx=0;
+            ball.dy=0;
+        });
+        */
+        mainPg=new Object();//TODO DEBUG
         mainPg.type="head";
         mainPg.size=32;
         //TODO DEBUG
@@ -106,6 +125,14 @@ function setup()
         mainPg.y=128;
         mainPg.angle=270;
         drawable.push(mainPg);
+        var tmp=new Object();
+        tmp.type="circle";
+        tmp.radius=12;
+        tmp.x=32*28;
+        tmp.y=32*4;
+        tmp.dx=0;
+        tmp.dy=0;
+        drawable.push(tmp);
         //TODO DEBUG
         var dx;
         var dy;
@@ -130,8 +157,9 @@ function setup()
             dy=0;
         }
         tail=mainPg;
-        snakeGrow=10;
+        snakeGrow=3;
         cooldownTreshold=32;
+        drawable=drawable.filter(el => el.type=="circle" || el.type=="head");
     }
 }
 //level up!
@@ -191,6 +219,12 @@ function draw(obj)
         ctx.rotate((obj.angle* Math.PI) / 180);
         ctx.translate(-obj.size/2,-obj.size/2);
         ctx.translate(obj.size/2-2,0);
+        ctx.fillStyle=bg;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(obj.size/2, obj.size);
+        ctx.lineTo(-obj.size/2, obj.size);
+        ctx.fill();
         for(i=0;i<obj.size;i++)
         {
             if(i%2)
@@ -313,7 +347,7 @@ function run()
     else if(level==3)
     {
         //make the main pg follow the mouse
-        const speed=5;
+        const speed=4;
         const bulletSpeed=15;
         const dx=mousex - mainPg.x;
         const dy=mousey - mainPg.y;
@@ -346,6 +380,7 @@ function run()
             cooldown=cooldownTreshold;
         }
         //rimuove da drawable ciò che non è più applicabile
+        var liveBalls=0;
         for (var i = drawable.length - 1; i >= 0; i--)
         {
             if( (drawable[i].type == "projectile") &&
@@ -353,6 +388,10 @@ function run()
                 drawable.splice(i, 1);
             else if(drawable[i].type == "circle" && drawable[i].radius<20)
                 drawable.splice(i, 1);
+            else if(drawable[i].type == "circle" && drawable[i].radius>24)
+            {
+                liveBalls++;
+            }
         }
         //controlla le collisioni tra palle e tutto il resto 
         drawable.filter(el => el.type=="circle").forEach(ball => 
@@ -360,7 +399,7 @@ function run()
             //colpito da proiettile
             drawable.filter(el => el.type=="projectile").forEach(el =>
             {
-                if(distanceFrom(el.x,el.y,ball.x,ball.y)<ball.radius-el.size)
+                if(distanceFrom(el.x,el.y,ball.x,ball.y)<ball.radius+el.size)
                 {
                     el.x=-100;
                     cooldown=5;
@@ -469,13 +508,38 @@ function run()
             if(Math.abs(ball.dy*=0.97)<0.1 || Math.abs(ball.dy)>30)
                 ball.dy=0;
         } );
-
+        if(liveBalls==0)
+            levelUp();
     }
     else if(level==4)
     {
         if(--cooldown<0)
         {
-            tmp=tail;
+            //turn head
+            var dx=mainPg.x-mousex;
+            var dy=mainPg.y-mousey;
+            //forbidden directions
+            if(mainPg.angle==0 && dy<0)
+                dy=0;
+            if(mainPg.angle==90 && dx>0)
+                dx=0;
+            if(mainPg.angle==180 && dy>0)
+                dy=0;
+            if(mainPg.angle==270 && dx<0)
+                dx=0;
+            //top
+            if(Math.abs(dy)>Math.abs(dx) && dy>32 && mainPg.angle!=180)
+                mainPg.angle=0;
+            //left
+            else if(Math.abs(dy)<Math.abs(dx) && dx>32 && mainPg.angle!=90)
+                mainPg.angle=270;
+            //bottom
+            else if(Math.abs(dy)>Math.abs(dx) && dy<-32 && mainPg.angle!=0)
+                mainPg.angle=180;
+            //right
+            else if(Math.abs(dy)<Math.abs(dx) && dx<-32 && mainPg.angle!=270)
+                mainPg.angle=90;
+
             //move
             drawable.filter(el => el.type=="head" || el.type=="body").forEach(el => {
                 if(el.angle==0)
@@ -499,12 +563,6 @@ function run()
                     el.dy=0;
                 }
             });
-            //follow
-            while(tmp.prev!=null)
-            {
-                tmp.angle=tmp.prev.angle;
-                tmp=tmp.prev;
-            }
             //grow
             if(snakeGrow-- > 0)
             {
@@ -517,6 +575,13 @@ function run()
                 tmp.prev=tail;
                 drawable.push(tmp);
                 tail=tmp;
+            }
+            //follow
+            tmp=tail;
+            while(tmp.prev!=null)
+            {
+                tmp.angle=tmp.prev.angle;
+                tmp=tmp.prev;
             }
             cooldown=cooldownTreshold;
         }
