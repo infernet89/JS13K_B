@@ -21,7 +21,7 @@ var snakeGrow=0;
 var tail;
 
 //TODO DEBUG
-level=0;
+level=5;
 //TODO DEBUG
 
 //setup
@@ -90,7 +90,7 @@ function setup()
         mainPg.angle=90;
         mainPg.x=-20;
         mainPg.y=-20;
-        drawable.push(mainPg);   
+        drawable.push(mainPg);
 
         canvas.style.cursor="default";       
     }
@@ -161,6 +161,17 @@ function setup()
         snakeGrow=3;
         cooldownTreshold=8;
         drawable=drawable.filter(el => el.type=="circle" || el.type=="head");
+    }
+    else if(level==5)
+    {
+        //TODO <DEBUG>
+        mainPg=new Object();
+        drawable.push(mainPg);   
+        //TODO </DEBUG>
+        mainPg.type="bar";
+        mainPg.x=100;
+        mainPg.y=canvasH-50;
+        mainPg.size=100;
     }
 }
 //level up!
@@ -258,6 +269,17 @@ function draw(obj)
         ctx.fillStyle=bg;
         ctx.fillRect(2,5,20,5);
         ctx.fillRect(10,20,20,5);
+    }
+    else if(obj.type=="bar")
+    {
+        ctx.fillStyle=fg;
+        ctx.beginPath();
+        ctx.arc(obj.x, obj.y+10, 10, 0, 2 * Math.PI);
+        ctx.arc(obj.x+obj.size, obj.y+10, 10, 0, 2 * Math.PI);
+        ctx.fill(); 
+        ctx.fillRect(obj.x,obj.y,obj.size,20);
+        ctx.fillStyle=bg;
+        ctx.fillRect(obj.x+10,obj.y+2,obj.size-20,2);
     }
     ctx.restore();
 }
@@ -706,6 +728,10 @@ function run()
                 drawable.push(tmp);
             }
         }
+    }
+    else if(level==5)
+    {
+        
     }
 
     //draw, move and check object collisions
