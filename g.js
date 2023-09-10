@@ -166,12 +166,45 @@ function setup()
     {
         //TODO <DEBUG>
         mainPg=new Object();
-        drawable.push(mainPg);   
+        drawable.push(mainPg);
+        for(var i=0;i<10;i++)
+        {
+            var tmp=new Object();
+            tmp.type="circle";
+            tmp.radius=12;
+            tmp.x=100;
+            tmp.y=100;
+            tmp.speed=10;
+            tmp.angle=rand(0,360)/180*Math.PI;
+            tmp.dx=tmp.speed*Math.sin(tmp.angle);
+            tmp.dy=tmp.speed*Math.cos(tmp.angle);
+            drawable.push(tmp);
+
+            tmp=new Object();
+            tmp.type="body";
+            tmp.size=32;
+            tmp.x=rand(0,canvasW);
+            tmp.y=rand(0,canvasH);
+            tmp.x=tmp.x-tmp.x%32;
+            tmp.y=tmp.y-tmp.y%32;
+            drawable.push(tmp);
+        }        
         //TODO </DEBUG>
         mainPg.type="bar";
         mainPg.x=100;
         mainPg.y=canvasH-50;
         mainPg.size=100;
+        //convert snake body in bricks
+        drawable.filter(el => el.type=="body").forEach(el =>
+        {
+            el.type="block"
+            tmp=new Object();
+            tmp.type="block";
+            tmp.size=32;
+            tmp.x=el.x;
+            tmp.y=el.y+16;
+            drawable.push(tmp);
+        });
     }
 }
 //level up!
@@ -280,6 +313,16 @@ function draw(obj)
         ctx.fillRect(obj.x,obj.y,obj.size,20);
         ctx.fillStyle=bg;
         ctx.fillRect(obj.x+10,obj.y+2,obj.size-20,2);
+    }
+    else if(obj.type=="block")
+    {
+        ctx.fillStyle=fg;
+        ctx.fillRect(obj.x,obj.y,obj.size,16);
+        ctx.fillStyle=bg;
+        ctx.fillRect(obj.x+2,obj.y+2,18,4);
+        ctx.fillRect(obj.x+22,obj.y+2,8,4);
+        ctx.fillRect(obj.x+2,obj.y+9,8,4);
+        ctx.fillRect(obj.x+12,obj.y+9,18,4);
     }
     ctx.restore();
 }
@@ -731,7 +774,58 @@ function run()
     }
     else if(level==5)
     {
-        
+        const speed=10;
+        mainPg.dy=0;
+        if(dragging)
+            mainPg.dx=0;
+        else if(mousex<mainPg.x+mainPg.size/2-speed)
+            mainPg.dx=-speed;
+        else if(mousex>mainPg.x+mainPg.size/2+speed)
+            mainPg.dx=speed;
+        else
+            mainPg.dx=0;
+        //balls bounce
+        drawable.filter(el => el.type=="circle").forEach(ball =>
+        {
+            //bounce with bar
+            if(ball.y+ball.dy+ball.radius>mainPg.y && ball.x>=mainPg.x && ball.x<=mainPg.x+mainPg.size)
+            {
+                //rimbalza bene, in base a dove colpisci la bar, rispettando la forza
+                angle = Math.PI+Math.PI*(ball.x-mainPg.x+2)/(mainPg.size+5);
+                ball.dx=ball.speed*Math.cos(angle);
+                ball.dy=ball.speed*Math.sin(angle);
+            }
+            //bounce from borders
+            if(ball.x<=ball.radius && ball.dx<0)
+                ball.dx*=-1;
+            if(ball.y<=ball.radius && ball.dy<0)
+                ball.dy*=-1;
+            if(ball.x>=canvasW-ball.radius && ball.dx>0)
+                ball.dx*=-1;
+            if(ball.y>=canvasH-ball.radius && ball.dy>0)
+                ball.dy*=-1;
+            //hit blocks?
+            for (var i = drawable.length - 1; i >= 0; i--)
+            {
+                if(drawable[i].type!="block") continue;
+                var block=drawable[i];
+                if(ball.x+ball.radius>=block.x && ball.x-ball.radius<=block.x+block.size
+                && ball.y+ball.radius>=block.y && ball.y-ball.radius<=block.y+16)
+                {
+                    //bounce ball (dx or dy, it depends)
+                    var dx=Math.abs(ball.x-block.x+block.size/2);
+                    var dy=Math.abs(ball.y-block.y+8);
+                    if(dx<dy)
+                        ball.dx*=-1;
+                    else
+                        ball.dy*=-1;
+                    drawable.splice(i, 1);
+                    delete block;
+                }
+            }
+
+
+        });
     }
 
     //draw, move and check object collisions
