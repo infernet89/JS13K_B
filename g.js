@@ -21,7 +21,7 @@ var snakeGrow=0;
 var tail;
 
 //TODO DEBUG
-level=5;
+level=0;
 //TODO DEBUG
 
 //setup
@@ -96,9 +96,11 @@ function setup()
     }
     else if(level==4)
     {
-        //guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Apple
+        //guarda la posizione dell'ultimo circle e di mainPg, per posizione Head e Egg
         mainPg.x=mainPg.x-mainPg.x%32;
         mainPg.y=mainPg.y-mainPg.y%32;
+        mainPg.dx=0;
+        mainPg.dy=0;
         mainPg.angle=mainPg.angle-mainPg.angle%90;
         drawable.filter(el => el.type=="circle").forEach(ball =>
         {
@@ -164,7 +166,7 @@ function setup()
     }
     else if(level==5)
     {
-        //TODO <DEBUG>
+        /*/TODO <DEBUG>
         mainPg=new Object();
         drawable.push(mainPg);
         for(var i=0;i<10;i++)
@@ -189,21 +191,45 @@ function setup()
             tmp.y=tmp.y-tmp.y%32;
             drawable.push(tmp);
         }        
-        //TODO </DEBUG>
+        //TODO </DEBUG>*/
         mainPg.type="bar";
         mainPg.x=100;
         mainPg.y=canvasH-50;
+        mainPg.dy=0;
+        mainPg.dx=0;
         mainPg.size=100;
         //convert snake body in bricks
         drawable.filter(el => el.type=="body").forEach(el =>
         {
             el.type="block"
+            el.dx=0;
+            el.dy=0;
             tmp=new Object();
             tmp.type="block";
             tmp.size=32;
             tmp.x=el.x;
             tmp.y=el.y+16;
+            tmp.dx=0;
+            tmp.dy=0;
+            tmp.angle=0;
             drawable.push(tmp);
+            //put bricks inside screen
+            while(tmp.x<32) tmp.x+=32;
+            while(tmp.x>canvasW-32) tmp.x-=32;
+            while(tmp.y<32) tmp.y+=32;
+            while(tmp.y>canvasH-32) tmp.y-=32;
+            while(el.x<32) el.x+=32;
+            while(el.x>canvasW-32) el.x-=32;
+            while(el.y<32) el.y+=32;
+            while(el.y>canvasH-32) el.y-=32;
+        });
+        //make the balls move
+        drawable.filter(el => el.type=="circle").forEach(el =>
+        {
+            el.speed=10;
+            el.angle=rand(0,360)/180*Math.PI;
+            el.dx=el.speed*Math.sin(el.angle);
+            el.dy=el.speed*Math.cos(el.angle);
         });
     }
 }
@@ -804,7 +830,7 @@ function run()
                 ball.dx*=-1;
             if(ball.y>=canvasH-ball.radius && ball.dy>0)
                 ball.dy*=-1;
-            //hit blocks?
+            //hit blocks
             for (var i = drawable.length - 1; i >= 0; i--)
             {
                 if(drawable[i].type!="block") continue;
@@ -823,9 +849,10 @@ function run()
                     delete block;
                 }
             }
-
-
         });
+        //ending condition
+        if(drawable.filter(el => el.type=="block").length<=0)
+            levelUp();
     }
 
     //draw, move and check object collisions
@@ -860,7 +887,7 @@ function regenerateBall(obj)
 {
     obj.x=100;
     obj.y=100;
-    while(obj.x > 10 && obj.x < canvasW+10 && obj.y > 10 && obj.y < canvasH+10) 
+    while(obj.x > -10 && obj.x < canvasW+10 && obj.y > -10 && obj.y < canvasH+10) 
     {
         obj.x=rand(-200,canvasW+200);
         obj.y=rand(-200,canvasH+200);
