@@ -1106,15 +1106,22 @@ function run()
             if(dist<mainPg.radius)
             {
                 drawable.splice(i, 1);
-                mainPg.radius+=0.05;
+                mainPg.radius+=0.07;
             }
-            else if(dist<mainPg.radius*2)
+            else if(dist<mainPg.radius*3)
             {
                 //get sucked in
-                drawable[i].dx=(mainPg.x-drawable[i].x)/10*(dist/mainPg.radius);
-                drawable[i].dy=(mainPg.y-drawable[i].y)/10*(dist/mainPg.radius);
+                drawable[i].dx=(mainPg.x-drawable[i].x)/30*(mainPg.radius/dist);
+                drawable[i].dy=(mainPg.y-drawable[i].y)/30*(mainPg.radius/dist);
+            }
+            else
+            {
+                drawable[i].dx*=0.8;
+                drawable[i].dy*=0.8;
             }
         }
+        if(drawable.length<100)
+            mainPg.radius+=10;
     }
 
     //draw, move and check object collisions
