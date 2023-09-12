@@ -24,7 +24,7 @@ var lastBall;
 var blowStep=0;
 
 //TODO DEBUG
-level=6;
+level=0;
 //TODO DEBUG
 
 //setup
@@ -247,9 +247,19 @@ function setup()
         enemy.size=100;
         enemy.speed=9;
         drawable.push(enemy);
-        //TODO eleggi una palla a "lastBall". La più vicina al centro.
-
-        //TODO <DEBUG>
+        
+        //eleggi una palla a "lastBall". La più vicina al centro.
+        var minDist=999999;
+        drawable.filter(el => el.type=="circle").forEach(el =>
+        {
+            var dist=distanceFrom(canvasW/2,canvasH/2,el.x,el.y);
+            if(dist<minDist)
+            {
+                minDist=dist;
+                lastBall=el;
+            }
+        });
+        /*/TODO <DEBUG>
         lastBall=new Object();
         lastBall.type="circle";
         lastBall.radius=12;
@@ -270,10 +280,10 @@ function setup()
         mainPg.angle=0;
         drawable.push(mainPg);
         enemy.speed=6;//TODO DEBUG
-        //TODO </DEBUG>
+        //TODO </DEBUG>*/
     }
     else if(level==7)
-    {//blow the lastball
+    {//blow the lastBall
         canvas.style.cursor="none";
         blowStep=0;
         for(var i=0;i<300;i++)
@@ -292,7 +302,7 @@ function setup()
         delete lastBall;
         enemy.dx=0;
         mainPg.dx=0;
-        cooldown=90;
+        cooldown=50;
     }
     else if(level==8)
     {//clean everything
@@ -300,8 +310,13 @@ function setup()
         mainPg.type="blackhole";
         mainPg.x=mousex;
         mainPg.y=mousey;
-        mainPg.radius=20;
+        mainPg.radius=1;
         drawable.push(mainPg);
+    }
+    else if(level==9)
+    {//ending title
+        cooldown=0;
+        drawable=[];
     }
 }
 //level up!
@@ -318,7 +333,7 @@ function levelUp()
         6 - Pong
     */
     setup();
-    console.log("Level up!",level);//TODO DEBUG
+    //console.log("Level up!",level);//TODO DEBUG
 }
 //draw a single object
 function draw(obj)
@@ -469,7 +484,10 @@ function move(obj)
 function run()
 {
     ctx.clearRect(0, 0, canvasW, canvasH);
-    ctx.fillStyle=bg;
+    if(level<9)
+        ctx.fillStyle=bg;
+    else
+        ctx.fillStyle="#000";
     ctx.fillRect(0,0,canvasW,canvasH);
     if(level==0)
     {
@@ -889,9 +907,7 @@ function run()
         //move main character
         const speed=10;
         mainPg.dy=0;
-        if(dragging)
-            mainPg.dx=0;
-        else if(mousex<mainPg.x+mainPg.size/2-speed)
+        if(mousex<mainPg.x+mainPg.size/2-speed)
             mainPg.dx=-speed;
         else if(mousex>mainPg.x+mainPg.size/2+speed)
             mainPg.dx=speed;
@@ -903,10 +919,20 @@ function run()
             //bounce with bar
             if(ball.y+ball.dy+ball.radius>mainPg.y && ball.x>=mainPg.x && ball.x<=mainPg.x+mainPg.size)
             {
-                //rimbalza bene, in base a dove colpisci la bar, rispettando la forza
-                angle = Math.PI+Math.PI*(ball.x-mainPg.x+2)/(mainPg.size+5);
-                ball.dx=ball.speed*Math.cos(angle);
-                ball.dy=ball.speed*Math.sin(angle);
+                if(dragging)
+                {
+                    ball.x=mainPg.x+mainPg.size/2;
+                    ball.y=mainPg.y+5;
+                    ball.dx=0;
+                    ball.dy=0;
+                }
+                else
+                {
+                    //rimbalza bene, in base a dove colpisci la bar, rispettando la forza
+                    angle = Math.PI+Math.PI*(ball.x-mainPg.x+2)/(mainPg.size+5);
+                    ball.dx=ball.speed*Math.cos(angle);
+                    ball.dy=ball.speed*Math.sin(angle);
+                }                
             }
             //bounce from borders
             if(ball.x<=ball.radius && ball.dx<0)
@@ -984,6 +1010,22 @@ function run()
             lastBall.dx=lastBall.speed*Math.cos(angle);
             lastBall.dy=lastBall.speed*Math.sin(angle);
             enemy.speed-=0.3;
+            //generate a single particle
+            var tmp=new Object();
+            tmp.type="particle";
+            tmp.x=lastBall.x+rand(0,5);
+            tmp.y=lastBall.y+rand(0,5);
+            tmp.dx=0;
+            tmp.dy=0;
+            drawable.push(tmp);
+            //and another, on the bar
+            var tmp=new Object();
+            tmp.type="particle";
+            tmp.x=enemy.x+rand(0,enemy.size);
+            tmp.y=enemy.y+rand(0,20);
+            tmp.dx=0;
+            tmp.dy=0;
+            drawable.push(tmp);
         }
         //exiting from the top (ending condition)
         if(lastBall.y<-20 && lastBall.dy<0)
@@ -1087,11 +1129,11 @@ function run()
                     tmp.dy=tmp.speed*Math.cos(tmp.angle);
                     drawable.push(tmp);
                 }
-                cooldown=60;
+                cooldown=30;
             }
             else if(blowStep==7)
                 levelUp();
-            cooldown+=90;
+            cooldown+=60;
         }
     }
     else if(level==8)
@@ -1122,6 +1164,41 @@ function run()
         }
         if(drawable.length<100)
             mainPg.radius+=10;
+        if(mainPg.radius<20)
+            mainPg.radius+=0.1;
+        else if(mainPg.radius>canvasW)
+            levelUp();
+    }
+    else if(level==9)
+    {
+        cooldown++;
+        var alpha=cooldown/300;
+        if(alpha>1)
+        {
+            alpha=2-alpha;
+        }
+        if(alpha<0.7)
+            alpha*=0.7;
+        else if(alpha<0.6)
+            alpha*=0.6;
+        else if(alpha<0.5)
+            alpha*=0.5;
+        else if(alpha<0.4)
+            alpha*=0.4;
+        else if(alpha<0.3)
+            alpha*=0.3;
+        ctx.globalAlpha=alpha;
+        ctx.fillStyle=fg;
+        ctx.font = "300px Brush Script MT";
+        ctx.textAlign="center";
+        ctx.fillText("B",canvasW/2,canvasH/2);
+        ctx.globalAlpha=1;
+        if(cooldown>=600)
+        {
+            level=-1;
+            drawable=[];
+            levelUp();
+        }        
     }
 
     //draw, move and check object collisions
